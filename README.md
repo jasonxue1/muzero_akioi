@@ -3,16 +3,19 @@
 ## Overview
 [ak-ioi](apps.ak-ioi.com/oi-2048) automated training based on the **muzero** algorithm, compatible with Apple M-series, Intel CPU, and CUDA, supporting automatic initialization and resume training.
 ## Quick Start
-1. Install and sync:
+1. Install `uv`:
+
+   see [official docs](https://docs.astral.sh/uv/getting-started/installation)
+2. Install and sync:
 
    ```bash
    uv sync
    ```
 
-2. Edit configs:
+3. Edit configs:
    * `init_config.toml` (for initial setup)
    * `train_config.toml` (`model_name` for resume or init)
-3. Start training:
+4. Start training:
 
    ```bash
    uv run train.py  # no need to activate the virtual environment
@@ -24,7 +27,7 @@
    python train.py  # you need to activate the virtual environment first
    ```
 
-4. Manual testing (optional):
+5. Manual testing (optional):
 
    ```bash
    uv run test.py  # no need to activate the virtual environment
