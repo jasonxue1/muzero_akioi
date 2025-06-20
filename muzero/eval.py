@@ -39,10 +39,10 @@ def eval(num: int, checkpoint_path: Path, log=False) -> list:
         res = ("continue", "win", "lose")[res]
         if log:
             printer.print_table(final_board)
-            print("\n")
+            print("")
             output = [["result", "score", "step"], [res, score, step]]
             printer.print_table(output)
-            print("\n\n")
+            print("\n")
         else:
             print(f"\reval: {i + 1}/{num}   score: {score}", end="", flush=True)
         score_list.append(score)
@@ -50,11 +50,3 @@ def eval(num: int, checkpoint_path: Path, log=False) -> list:
         print("\neval: Done")
 
     return score_list
-
-
-if __name__ == "__main__":
-    checkpoint_path = Path("models/hello_akioi/checkpoints/latest.pt")
-    num = 3
-    result = eval(num, checkpoint_path, True)
-    result_table = [list(range(num)), result]
-    printer.print_table(result_table)

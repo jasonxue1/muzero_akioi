@@ -14,6 +14,9 @@ save_interval = 50
 # 评测数量(局数；0=禁用，默认 20)
 eval_times = 20
 
+# 手动测试数量(局数；0=禁用，默认 20)
+manual_test_times = 10
+
 # —— 训练超参数 / Training Hyperparameters ——
 # 重放缓存容量(默认 200000)
 # Replay buffer capacity (default: 200000)
