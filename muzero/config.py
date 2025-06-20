@@ -16,9 +16,6 @@ class Config:
 
     eval_interval: int = 20  # 测试
 
-    resume: bool = False
-    # 断点续训
-
     model_dir: str = "hello_akioi"
 
     eval: bool = True  # 是否测试

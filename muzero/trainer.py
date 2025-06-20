@@ -82,12 +82,13 @@ def train(cfg: Config) -> None:
     env = Akioi2048Env()
     rb = ReplayBuffer(cfg)
     ckdir = Path(cfg.checkpoint_dir)
-    ckdir.mkdir(exist_ok=True)
+    ckdir.mkdir(parents=True, exist_ok=True)
 
     # ❸ 断点续训
     start_g = 0
-    if cfg.resume:
-        resume_path = f"{cfg.checkpoint_dir}/latest.pt"
+
+    resume_path = Path(f"{cfg.checkpoint_dir}/latest.pt")
+    if resume_path.exists():
         ckpt = torch.load(resume_path, map_location=device)
 
         net.load_state_dict(ckpt["net"])
@@ -126,7 +127,7 @@ def train(cfg: Config) -> None:
 
         # 日志
         if (g_idx + 1) % cfg.log_interval == 0:
-            avg_s = np.mean(recent_scores) * 10
+            avg_s = np.mean(recent_scores) * 10_000
             avg_t = np.mean(recent_steps)
             loss_str = f"{last_loss:.4f}"
             print(
@@ -143,7 +144,7 @@ def train(cfg: Config) -> None:
         # 保存 checkpoint —— 带时间戳 & 更新 latest.pt & test
         if cfg.save_interval and (g_idx + 1) % cfg.save_interval == 0:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-            fname = f"muzero_{g_idx + 1:06d}_{ts}.pt"
+            fname = f"muzero_{g_idx + 1:09d}_{ts}.pt"
             path = ckdir / fname
             torch.save(
                 {
@@ -167,7 +168,7 @@ def train(cfg: Config) -> None:
             except (AttributeError, OSError):
                 # 无法创建 symlink 时退回到复制
                 shutil.copy(path, latest)
-            print("  → latest.pt updated")
+            print(f"✓ {latest} updated")
             if cfg.eval:
                 eval_res = eval(cfg.eval_interval, f"{cfg.checkpoint_dir}/latest.pt")
                 eval_special_res = [
@@ -177,6 +178,25 @@ def train(cfg: Config) -> None:
                 ]
                 eval_table = [["min", "max", "average"], eval_special_res]
                 printer.print_table(eval_table)
+
+                # 保存至csv
+                csv_path = Path(cfg.csv_path)
+                new_df = pl.DataFrame(
+                    {
+                        "id": [g_idx],
+                        "min": [eval_special_res[0]],
+                        "max": [eval_special_res[1]],
+                        "average": [eval_special_res[2]],
+                        "loss": [last_loss],
+                    }
+                )
+                if csv_path.exists():
+                    old_df = pl.read_csv(csv_path)
+                    combined = pl.concat([old_df, new_df])
+                else:
+                    combined = new_df
+                combined.write_csv(csv_path)
+                print(f"✓ {csv_path} updated")
 
 
 if __name__ == "__main__":
