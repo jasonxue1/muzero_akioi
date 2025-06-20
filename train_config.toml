@@ -21,7 +21,7 @@ replay_size = 200000
 
 # 批量大小(默认 512)
 # Batch size per optimisation step (default: 512)
-batch_size = 512
+batch_size = 128
 
 # 每局自博弈后执行优化步数(默认 50)
 # Number of optimisation steps after each game (default: 50)

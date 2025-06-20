@@ -67,7 +67,7 @@ def play_one(
     return g
 
 
-def train(cfg: SimpleNamespace) -> None:
+def train(train_cfg: SimpleNamespace, model_cfg: SimpleNamespace) -> None:
     last_loss = float("nan")
     # ❶ 设备选择
     if torch.cuda.is_available():
@@ -80,11 +80,11 @@ def train(cfg: SimpleNamespace) -> None:
     print("Running on", device)
 
     # ❷ 组件初始化
-    net = MuZeroNet(cfg).to(device)
-    optim = torch.optim.Adam(net.parameters(), lr=cfg.lr_init)
+    net = MuZeroNet(model_cfg).to(device)
+    optim = torch.optim.Adam(net.parameters(), lr=model_cfg.lr_init)
     env = Akioi2048Env()
-    rb = ReplayBuffer(cfg)
-    ckdir = Path("models") / Path(cfg.model_name) / "checkpoints"
+    rb = ReplayBuffer(train_cfg)
+    ckdir = Path("models") / Path(train_cfg.model_name) / "checkpoints"
     ckdir.mkdir(parents=True, exist_ok=True)
 
     # ❸ 断点续训
@@ -104,18 +104,18 @@ def train(cfg: SimpleNamespace) -> None:
 
     # ❹ 训练循环
     recent_scores, recent_steps = [], []
-    for g_idx in trange(start_g, cfg.total_games, desc="games"):
-        game = play_one(env, net, cfg, device)
+    for g_idx in trange(start_g, train_cfg.total_games, desc="games"):
+        game = play_one(env, net, model_cfg, device)
         rb.add(game)
         recent_scores.append(game["total_reward"])
         recent_steps.append(game["steps"])
-        if len(recent_scores) > cfg.log_interval:
+        if len(recent_scores) > train_cfg.log_interval:
             recent_scores.pop(0)
             recent_steps.pop(0)
 
         # 网络更新
-        if len(rb) >= cfg.batch_size:
-            for _ in range(cfg.update_per_game):
+        if len(rb) >= train_cfg.batch_size:
+            for _ in range(train_cfg.update_per_game):
                 obs, pi, v = rb.sample(device)
                 h = net.representation(obs)
                 logits, v_pred = net.prediction(h)
@@ -128,7 +128,7 @@ def train(cfg: SimpleNamespace) -> None:
                 optim.step()
 
         # 日志
-        if (g_idx + 1) % cfg.log_interval == 0:
+        if (g_idx + 1) % train_cfg.log_interval == 0:
             avg_s = np.mean(recent_scores) * 10_000
             avg_t = np.mean(recent_steps)
             loss_str = f"{last_loss:.4f}"
@@ -139,7 +139,7 @@ def train(cfg: SimpleNamespace) -> None:
             )
 
         # 保存 checkpoint —— 带时间戳 & 更新 latest.pt & test
-        if cfg.save_interval and (g_idx + 1) % cfg.save_interval == 0:
+        if train_cfg.save_interval and (g_idx + 1) % train_cfg.save_interval == 0:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
             fname = f"muzero_{g_idx + 1:09d}_{ts}.pt"
             path = ckdir / fname
@@ -147,9 +147,9 @@ def train(cfg: SimpleNamespace) -> None:
                 {
                     "net": net.state_dict(),
                     "optim": optim.state_dict(),
-                    "cfg": cfg,
                     "game_idx": g_idx + 1,
                     "replay": list(rb.buf),
+                    "cfg": model_cfg,
                 },
                 path,
             )
@@ -166,8 +166,8 @@ def train(cfg: SimpleNamespace) -> None:
                 # 无法创建 symlink 时退回到复制
                 shutil.copy(path, latest)
             print(f"✓ {latest} updated")
-            if cfg.eval_times:
-                eval_res = eval(cfg.eval_times, ckdir / "latest.pt")
+            if train_cfg.eval_times:
+                eval_res = eval(train_cfg.eval_times, ckdir / "latest.pt")
                 eval_special_res = [
                     min(eval_res),
                     max(eval_res),
@@ -177,10 +177,10 @@ def train(cfg: SimpleNamespace) -> None:
                 printer.print_table(eval_table)
 
                 # 保存至csv
-                csv_path = ckdir / "../data.csv"
+                csv_path = Path("models") / train_cfg.model_name / "data.csv"
                 new_df = pl.DataFrame(
                     {
-                        "id": [g_idx],
+                        "id": [g_idx + 1],
                         "min": [eval_special_res[0]],
                         "max": [eval_special_res[1]],
                         "average": [eval_special_res[2]],
