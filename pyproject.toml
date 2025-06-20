@@ -7,7 +7,9 @@ requires-python = ">=3.12"
 dependencies = [
     "akioi-2048>=0.2",
     "gymnasium>=0.29",
+    "jason-personal-lib>=0.1.2",
     "numpy<2",
+    "polars>=1.31.0",
     "torch<2.3",
     "tqdm>=4.66",
 ]

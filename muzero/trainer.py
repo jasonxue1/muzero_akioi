@@ -1,7 +1,3 @@
-# muzero/trainer.py
-# Trainer with timestamped checkpoints and a `latest.pt` symlink/alias.
-# Author: Jason Xue (modified)
-
 from __future__ import annotations
 
 import os
@@ -11,12 +7,18 @@ from datetime import datetime
 import numpy as np
 import torch
 from tqdm import trange
+import polars as pl
 
 from env.akioi_env import Akioi2048Env
-from muzero.config import Config
 from muzero.network import MuZeroNet
 from muzero.mcts import Node, run_mcts, add_noise
 from muzero.replay_buffer import Game, ReplayBuffer
+from muzero.eval import eval
+
+import printer
+
+# 在文件开头 import
+import statistics
 
 
 def play_one(env: Akioi2048Env, net: MuZeroNet, cfg: Config, device: str) -> Game:
@@ -62,7 +64,8 @@ def play_one(env: Akioi2048Env, net: MuZeroNet, cfg: Config, device: str) -> Gam
     return g
 
 
-def train(cfg: Config = Config()) -> None:
+def train(cfg: Config) -> None:
+    last_loss = float("nan")
     # ❶ 设备选择
     if torch.cuda.is_available():
         device = "cuda"
@@ -83,12 +86,18 @@ def train(cfg: Config = Config()) -> None:
 
     # ❸ 断点续训
     start_g = 0
-    if cfg.resume_path:
-        ckpt = torch.load(cfg.resume_path, map_location=device)
+    if cfg.resume:
+        resume_path = f"{cfg.checkpoint_dir}/latest.pt"
+        ckpt = torch.load(resume_path, map_location=device)
+
         net.load_state_dict(ckpt["net"])
         optim.load_state_dict(ckpt["optim"])
         start_g = ckpt.get("game_idx", 0)
-        print(f"✓ Resumed from {cfg.resume_path} (starting at game {start_g})")
+        print(f"✓ Resumed from {resume_path} (starting at game {start_g})")
+        # restore replay buffer so batch_size is already met
+        if "replay" in ckpt:
+            rb.buf.extend(ckpt["replay"])
+            print(f"✓ Restored {len(rb)} games into replay buffer")
 
     # ❹ 训练循环
     recent_scores, recent_steps = [], []
@@ -110,6 +119,7 @@ def train(cfg: Config = Config()) -> None:
                 loss = torch.nn.functional.cross_entropy(
                     logits, pi
                 ) + torch.nn.functional.mse_loss(v_pred, v)
+                last_loss = float(loss)
                 optim.zero_grad()
                 loss.backward()
                 optim.step()
@@ -118,14 +128,19 @@ def train(cfg: Config = Config()) -> None:
         if (g_idx + 1) % cfg.log_interval == 0:
             avg_s = np.mean(recent_scores) * 10
             avg_t = np.mean(recent_steps)
-            loss_str = f"{float(loss):.4f}" if "loss" in locals() else "-"
+            loss_str = f"{last_loss:.4f}"
             print(
                 f"[{g_idx + 1:>6}] buf={len(rb):6d}"
                 f"  loss={loss_str:>6}"
                 f"  avgScore={avg_s:8.2f}  avgSteps={avg_t:6.1f}"
             )
 
-        # 保存 checkpoint —— 带时间戳 & 更新 latest.pt
+        # 测试
+        # if (g_idx + 1) % cfg.eval_interval == 0:
+        #     avg_eval = evaluate(net, env, cfg, device, n_games=20)
+        #     print(f"🎯 [Eval @ {g_idx + 1}] avg-2048-score={avg_eval:.1f}")
+
+        # 保存 checkpoint —— 带时间戳 & 更新 latest.pt & test
         if cfg.save_interval and (g_idx + 1) % cfg.save_interval == 0:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
             fname = f"muzero_{g_idx + 1:06d}_{ts}.pt"
@@ -136,6 +151,7 @@ def train(cfg: Config = Config()) -> None:
                     "optim": optim.state_dict(),
                     "cfg": cfg,
                     "game_idx": g_idx + 1,
+                    "replay": list(rb.buf),
                 },
                 path,
             )
@@ -152,17 +168,20 @@ def train(cfg: Config = Config()) -> None:
                 # 无法创建 symlink 时退回到复制
                 shutil.copy(path, latest)
             print("  → latest.pt updated")
+            if cfg.eval:
+                eval_res = eval(cfg.eval_interval, f"{cfg.checkpoint_dir}/latest.pt")
+                eval_special_res = [
+                    min(eval_res),
+                    max(eval_res),
+                    sum(eval_res) / len(eval_res),
+                ]
+                eval_table = [["min", "max", "average"], eval_special_res]
+                printer.print_table(eval_table)
 
 
 if __name__ == "__main__":
     # 全部配置集中在这里
-    cfg = Config(
-        total_games=10_000,
-        log_interval=50,
-        save_interval=1_000,
-        num_simulations=50,
-        hidden_size=128,
-        batch_size=256,
-        resume_path=None,  # 或 "checkpoints/latest.pt" / 具体 ckpt
-    )
+    from muzero.config import Config
+
+    cfg = Config()
     train(cfg)
