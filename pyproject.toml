@@ -10,7 +10,7 @@ dependencies = [
   "jason-personal-lib>=0.1.2",
   "numpy<2",
   "polars>=1.31.0",
-  "torch<2.3",
+  "torch<2.8",
   "tqdm>=4.66",
 ]
 
