@@ -1,7 +1,7 @@
 # muzero/mcts.py
 from __future__ import annotations
 import math, torch, numpy as np
-from muzero.config import Config
+from types import SimpleNamespace
 
 
 class Node:
@@ -29,7 +29,11 @@ def select(node: Node):
 
 
 @torch.no_grad()
-def run_mcts(root: Node, net, cfg: Config, device="cpu"):
+def run_mcts(
+    root: Node,
+    net,
+    cfg: SimpleNamespace,
+):
     for _ in range(cfg.num_simulations):
         node, path = root, [root]
         # selection
@@ -56,7 +60,7 @@ def _backprop(path, v, γ):
         v = node.reward + γ * v
 
 
-def add_noise(root: Node, cfg: Config):
+def add_noise(root: Node, cfg: SimpleNamespace):
     actions = list(root.children.keys())
     if not actions:
         return
@@ -66,15 +70,3 @@ def add_noise(root: Node, cfg: Config):
         child.prior = (
             child.prior * (1 - cfg.exploration_frac) + n * cfg.exploration_frac
         )
-
-
-# ── self-test ────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    from muzero.network import MuZeroNet
-
-    cfg = Config(num_simulations=10)
-    net = MuZeroNet(cfg)
-    root = Node(1.0)
-    root.latent = net.representation(torch.randn(1, *cfg.obs_shape))
-    run_mcts(root, net, cfg)
-    print("visits after 10 sims", root.visit)

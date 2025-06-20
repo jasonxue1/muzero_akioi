@@ -1,3 +1,4 @@
+from pathlib import Path
 import akioi_2048 as ak
 import printer
 from muzero.choose_move import MoveChooser
@@ -29,7 +30,7 @@ def single_run(checkpoint_path):
     return (board, res, score, step)
 
 
-def eval(num: int, checkpoint_path: str, log=False) -> list:
+def eval(num: int, checkpoint_path: Path, log=False) -> list:
     score_list = []
     if not log:
         print(f"eval: 0/{num}", end="")
@@ -52,7 +53,7 @@ def eval(num: int, checkpoint_path: str, log=False) -> list:
 
 
 if __name__ == "__main__":
-    checkpoint_path = "checkpoints/latest.pt"
+    checkpoint_path = Path("models/hello_akioi/checkpoints/latest.pt")
     num = 3
     result = eval(num, checkpoint_path, True)
     result_table = [list(range(num)), result]

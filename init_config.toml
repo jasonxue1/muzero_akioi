@@ -1,0 +1,31 @@
+# MCTS 模拟次数(default: 100)
+# Number of MCTS simulations per move (default: 100)
+num_simulations = 100
+
+# 折扣因子 γ(default: 1.0)
+# Discount factor γ; additive scoring → 1.0
+discount = 1.0
+
+# 根节点 Dirichlet 噪声 α(default: 0.3)
+# Dirichlet-noise alpha at root (default: 0.3)
+dirichlet_alpha = 0.3
+
+# 根节点噪声混合比例 ε(default: 0.25)
+# Noise mix-in fraction ε at root (default: 0.25)
+exploration_frac = 0.25
+
+# 观测张量形状(default: [17,4,4)
+# Observation tensor shape (default: [17,4,4])
+obs_shape = [17, 4, 4]
+
+# 网络隐藏通道数(default: 256)
+# Latent channel size (default: 256)
+hidden_size = 256
+
+# 动作空间大小(default: 4)
+# Action space size (default: 4)
+action_space = 4
+
+# Adam 初始学习率，仅用于初始化优化器状态(default: 5e-4)
+# Initial learning rate for Adam; used only to build optimizer state(default: 5e-4)
+lr_init = 0.0005

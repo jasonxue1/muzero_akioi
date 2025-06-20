@@ -1,7 +1,7 @@
 # muzero/replay_buffer.py
 from __future__ import annotations
 import random, collections, numpy as np, torch
-from muzero.config import Config
+from types import SimpleNamespace
 
 
 class Game(dict):
@@ -9,7 +9,7 @@ class Game(dict):
 
 
 class ReplayBuffer:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: SimpleNamespace):
         self.buf: collections.deque[Game] = collections.deque(maxlen=cfg.replay_size)
         self.cfg = cfg
 
@@ -29,13 +29,3 @@ class ReplayBuffer:
             torch.as_tensor(pi, dtype=torch.float32, device=device),
             torch.as_tensor(v, dtype=torch.float32, device=device),
         )
-
-
-if __name__ == "__main__":
-    cfg = Config(batch_size=4)
-    rb = ReplayBuffer(cfg)
-    dummy = np.zeros(cfg.obs_shape, np.float32)
-    for _ in range(10):
-        rb.add(Game(obs=[dummy], pi=[np.ones(4) / 4], value=[0.0], reward=[0.0]))
-    o, p, v = rb.sample()
-    print("sample shapes:", o.shape, p.shape, v.shape)

@@ -1,0 +1,33 @@
+# —— 自博弈 & 日志 / Self-Play & Logging ——
+# 训练总局数(默认 10000)
+# Total self-play games to run (default: 10000)
+total_games = 10000
+
+# 日志打印间隔(局数，默认 50)
+# Games between console logs (default: 50)
+log_interval = 50
+
+# 保存 & 评测间隔(局数；0=禁用，默认 50)
+# Games between checkpoint & evaluation (0=disable, default: 50)
+save_interval = 50
+
+# 评测数量(局数；0=禁用，默认 20)
+eval_times = 20
+
+# —— 训练超参数 / Training Hyperparameters ——
+# 重放缓存容量(默认 200000)
+# Replay buffer capacity (default: 200000)
+replay_size = 200000
+
+# 批量大小(默认 512)
+# Batch size per optimisation step (default: 512)
+batch_size = 512
+
+# 每局自博弈后执行优化步数(默认 50)
+# Number of optimisation steps after each game (default: 50)
+update_per_game = 50
+
+# —— 存储路径 / Storage Paths ——
+# 模型目录名称(相对 models/，对应 Config.model_dir，默认 "hello_akioi")
+# Model directory name under `models/` (matches Config.model_dir, default: "hello_akioi")
+model_name = "akioi_2048_model_v0.1.0_trained_on_MacBook_Pro_2016"

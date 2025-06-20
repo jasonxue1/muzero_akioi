@@ -4,6 +4,7 @@ import os
 import shutil
 from pathlib import Path
 from datetime import datetime
+from types import SimpleNamespace
 import numpy as np
 import torch
 from tqdm import trange
@@ -17,24 +18,25 @@ from muzero.eval import eval
 
 import printer
 
-# 在文件开头 import
-import statistics
 
-
-def play_one(env: Akioi2048Env, net: MuZeroNet, cfg: Config, device: str) -> Game:
+def play_one(
+    env: Akioi2048Env, net: MuZeroNet, cfg: SimpleNamespace, device: str
+) -> Game:
     obs, _ = env.reset()
-    g: Game = {
-        "obs": [obs],
-        "pi": [],
-        "value": [],
-        "reward": [],
-        "total_reward": 0.0,
-        "steps": 0,
-    }
+    g: Game = Game(
+        {
+            "obs": [obs],
+            "pi": [],
+            "value": [],
+            "reward": [],
+            "total_reward": 0.0,
+            "steps": 0,
+        }
+    )
 
     root = Node(1.0)
     root.latent = net.representation(torch.tensor(obs[None], device=device))
-    run_mcts(root, net, cfg, device)
+    run_mcts(root, net, cfg)
     add_noise(root, cfg)
 
     done = False
@@ -56,15 +58,16 @@ def play_one(env: Akioi2048Env, net: MuZeroNet, cfg: Config, device: str) -> Gam
         child = root.children[action]
         if child.latent is None:
             a_one = torch.eye(cfg.action_space, device=device)[action].unsqueeze(0)
-            child.latent, _ = net.dynamics(root.latent, a_one)
+            if root.latent is not None:
+                child.latent, _ = net.dynamics(root.latent, a_one)
         root = child
         if not root.children:
-            run_mcts(root, net, cfg, device)
+            run_mcts(root, net, cfg)
 
     return g
 
 
-def train(cfg: Config) -> None:
+def train(cfg: SimpleNamespace) -> None:
     last_loss = float("nan")
     # ❶ 设备选择
     if torch.cuda.is_available():
@@ -81,24 +84,23 @@ def train(cfg: Config) -> None:
     optim = torch.optim.Adam(net.parameters(), lr=cfg.lr_init)
     env = Akioi2048Env()
     rb = ReplayBuffer(cfg)
-    ckdir = Path(cfg.checkpoint_dir)
+    ckdir = Path("models") / Path(cfg.model_name) / "checkpoints"
     ckdir.mkdir(parents=True, exist_ok=True)
 
     # ❸ 断点续训
     start_g = 0
 
-    resume_path = Path(f"{cfg.checkpoint_dir}/latest.pt")
-    if resume_path.exists():
-        ckpt = torch.load(resume_path, map_location=device)
+    resume_path = ckdir / "latest.pt"
+    ckpt = torch.load(resume_path, map_location=device)
 
-        net.load_state_dict(ckpt["net"])
-        optim.load_state_dict(ckpt["optim"])
-        start_g = ckpt.get("game_idx", 0)
-        print(f"✓ Resumed from {resume_path} (starting at game {start_g})")
-        # restore replay buffer so batch_size is already met
-        if "replay" in ckpt:
-            rb.buf.extend(ckpt["replay"])
-            print(f"✓ Restored {len(rb)} games into replay buffer")
+    net.load_state_dict(ckpt["net"])
+    optim.load_state_dict(ckpt["optim"])
+    start_g = ckpt.get("game_idx", 0)
+    print(f"✓ Resumed from {resume_path} (starting at game {start_g})")
+    # restore replay buffer so batch_size is already met
+    if "replay" in ckpt:
+        rb.buf.extend(ckpt["replay"])
+        print(f"✓ Restored {len(rb)} games into replay buffer")
 
     # ❹ 训练循环
     recent_scores, recent_steps = [], []
@@ -131,15 +133,10 @@ def train(cfg: Config) -> None:
             avg_t = np.mean(recent_steps)
             loss_str = f"{last_loss:.4f}"
             print(
-                f"[{g_idx + 1:>6}] buf={len(rb):6d}"
+                f"[{g_idx + 1:>9}]"
                 f"  loss={loss_str:>6}"
                 f"  avgScore={avg_s:8.2f}  avgSteps={avg_t:6.1f}"
             )
-
-        # 测试
-        # if (g_idx + 1) % cfg.eval_interval == 0:
-        #     avg_eval = evaluate(net, env, cfg, device, n_games=20)
-        #     print(f"🎯 [Eval @ {g_idx + 1}] avg-2048-score={avg_eval:.1f}")
 
         # 保存 checkpoint —— 带时间戳 & 更新 latest.pt & test
         if cfg.save_interval and (g_idx + 1) % cfg.save_interval == 0:
@@ -169,8 +166,8 @@ def train(cfg: Config) -> None:
                 # 无法创建 symlink 时退回到复制
                 shutil.copy(path, latest)
             print(f"✓ {latest} updated")
-            if cfg.eval:
-                eval_res = eval(cfg.eval_interval, f"{cfg.checkpoint_dir}/latest.pt")
+            if cfg.eval_times:
+                eval_res = eval(cfg.eval_times, ckdir / "latest.pt")
                 eval_special_res = [
                     min(eval_res),
                     max(eval_res),
@@ -180,7 +177,7 @@ def train(cfg: Config) -> None:
                 printer.print_table(eval_table)
 
                 # 保存至csv
-                csv_path = Path(cfg.csv_path)
+                csv_path = Path(cfg.model_name) / "data.csv"
                 new_df = pl.DataFrame(
                     {
                         "id": [g_idx],
@@ -197,11 +194,3 @@ def train(cfg: Config) -> None:
                     combined = new_df
                 combined.write_csv(csv_path)
                 print(f"✓ {csv_path} updated")
-
-
-if __name__ == "__main__":
-    # 全部配置集中在这里
-    from muzero.config import Config
-
-    cfg = Config()
-    train(cfg)

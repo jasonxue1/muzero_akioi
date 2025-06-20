@@ -1,12 +1,12 @@
 import math
 from pathlib import Path
+from types import SimpleNamespace
 from typing import List, Optional
 
 import numpy as np
 import torch
 import akioi_2048
 
-from muzero.config import Config
 from muzero.network import MuZeroNet
 from muzero.mcts import Node, run_mcts
 
@@ -29,7 +29,7 @@ def _is_valid_move(board: List[List[int]], action: int) -> bool:
 class MoveChooser:
     def __init__(
         self,
-        checkpoint_path: str,
+        checkpoint_path: Path,
         mode: str = "mcts",
         device: Optional[str] = None,
         mcts_simulations: Optional[int] = None,
@@ -43,8 +43,8 @@ class MoveChooser:
                 device = "cpu"
         self.device = device
 
-        ckpt = torch.load(Path(checkpoint_path), map_location=device)
-        self.cfg: Config = ckpt.get("cfg", Config())
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        self.cfg: SimpleNamespace = ckpt.get("cfg")
         if mcts_simulations is not None:
             self.cfg.num_simulations = mcts_simulations
 
@@ -76,7 +76,7 @@ class MoveChooser:
             root = Node(1.0)
             with torch.inference_mode():
                 root.latent = self.net.representation(obs_t)
-            run_mcts(root, self.net, self.cfg, self.device)
+            run_mcts(root, self.net, self.cfg)
             visits = np.array(
                 [root.children[a].visit for a in range(self.cfg.action_space)],
                 dtype=np.float32,

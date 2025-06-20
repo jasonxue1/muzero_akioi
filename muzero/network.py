@@ -1,9 +1,9 @@
 # muzero/network.py
 from __future__ import annotations
+from types import SimpleNamespace
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from muzero.config import Config
 
 
 class Residual(nn.Module):
@@ -21,7 +21,7 @@ class Residual(nn.Module):
 
 
 class MuZeroNet(nn.Module):
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: SimpleNamespace):
         super().__init__()
         self.cfg = cfg
         ch = cfg.hidden_size
@@ -63,16 +63,3 @@ class MuZeroNet(nn.Module):
         h_next = h_next_flat.view(-1, self.cfg.hidden_size, 4, 4)
         r = self.dyn_reward(h_next_flat).squeeze(1).tanh()
         return h_next, r
-
-
-# ── quick self-test ──────────────────────────────────────────────────────
-if __name__ == "__main__":
-    cfg = Config()
-    net = MuZeroNet(cfg)
-    dummy = torch.randn(2, *cfg.obs_shape)
-    h = net.representation(dummy)
-    π, v = net.prediction(h)
-    print("policy logits", π.shape, "value", v.shape)
-    a = torch.eye(cfg.action_space)[[0, 1]]
-    h2, r = net.dynamics(h, a)
-    print("next h", h2.shape, "reward", r.shape)
