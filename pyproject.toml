@@ -5,11 +5,31 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "akioi-2048>=0.2",
-    "gymnasium>=0.29",
-    "jason-personal-lib>=0.1.2",
-    "numpy<2",
-    "polars>=1.31.0",
-    "torch<2.3",
-    "tqdm>=4.66",
+  "akioi-2048>=0.2",
+  "gymnasium>=0.29",
+  "jason-personal-lib>=0.1.2",
+  "numpy<2",
+  "polars>=1.31.0",
+  "torch<2.3",
+  "tqdm>=4.66",
 ]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
+  { index = "pytorch-cu121", marker = "sys_platform == 'linux'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", marker = "sys_platform != 'linux'" },
+  { index = "pytorch-cu121", marker = "sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
