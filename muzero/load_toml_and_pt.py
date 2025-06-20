@@ -1,4 +1,3 @@
-import os
 from types import SimpleNamespace
 
 # 优先使用 Python 3.11+ 内置 tomllib，否则退回到第三方 toml 包

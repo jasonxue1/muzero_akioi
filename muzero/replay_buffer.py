@@ -19,7 +19,7 @@ class ReplayBuffer:
     def __len__(self):
         return len(self.buf)
 
-    def sample(self, device="cpu"):
+    def sample(self, device):
         batch = random.sample(self.buf, self.cfg.batch_size)
         obs = np.stack([g["obs"][0] for g in batch])
         pi = np.stack([g["pi"][0] for g in batch])

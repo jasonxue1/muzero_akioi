@@ -177,7 +177,7 @@ def train(cfg: SimpleNamespace) -> None:
                 printer.print_table(eval_table)
 
                 # 保存至csv
-                csv_path = Path(cfg.model_name) / "data.csv"
+                csv_path = ckdir / "../data.csv"
                 new_df = pl.DataFrame(
                     {
                         "id": [g_idx],
